@@ -1,0 +1,177 @@
+<html>
+<head>
+<title>Jump Ball</title>
+<style>
+#ball {
+    color: blue;
+    font-size: 20px;
+    position: absolute;
+    top: 600px;
+    left: 100px;
+}
+#target {
+    position: absolute;
+    width: 40px;
+    height: 40px;
+    background: red;
+    border-radius: 50%;
+}
+#scoreBoard {
+    position: fixed;
+    top: 10px;
+    left: 10px;
+    font-size: 20px;
+    background: rgba(255,255,255,0.7);
+    padding: 5px 10px;
+    border-radius: 5px;
+    z-index: 10;
+}
+#parabolaCanvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    pointer-events: none;
+    z-index: 1;
+}
+</style>
+</head>
+<body>
+<button onclick="resetBall();">リセット！</button>
+<div id="scoreBoard">Score: <span id="score">0</span></div>
+<div id="ball">●</div>
+<div id="target"></div>
+<canvas id="parabolaCanvas"></canvas>
+
+<script>
+var x = 200, y = 600;
+var addx = 0, addy = 0;
+var gravity = 2;
+var ground = 600;
+var bounce = 0.9;
+var startX, startY;
+var isDrag = false;
+var ballSize = 20;
+var power = 8;
+var maxPower = 40;
+var score = 0;
+var targetSize = 40;
+
+var ball = document.getElementById("ball");
+var target = document.getElementById("target");
+var canvas = document.getElementById("parabolaCanvas");
+var ctx = canvas.getContext("2d");
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
+// ターゲット配置
+function placeTarget() {
+    var tx = Math.random() * (window.innerWidth - targetSize);
+    var ty = Math.random() * (ground - targetSize);
+    target.style.left = tx + "px";
+    target.style.top = ty + "px";
+}
+
+// ボールリセット
+function resetBall() {
+    x = 200;
+    y = 600;
+    addx = 0;
+    addy = 0;
+    isDrag = false;
+    ball.style.left = x + "px";
+    ball.style.top = y + "px";
+    score = 0;
+    document.getElementById("score").innerText = score;
+    placeTarget();
+    clearCanvas();
+}
+
+// 点々軌道描画（壁・天井反射・重力考慮）
+function drawParabola(endX, endY) {
+    clearCanvas();
+    var vx = (endX - startX) / power;
+    var vy = (endY - startY) / power;
+    var px = x;
+    var py = y;
+    var tempVx = vx;
+    var tempVy = vy;
+    ctx.fillStyle = "red";
+    for (let i=0; i<10; i++) { // 30点分
+        px += tempVx;
+        py += tempVy;
+        tempVy += gravity; // 重力
+        // 壁判定
+        if (px <= 0) { px = 0; tempVx = -tempVx * bounce; }
+        if (px >= window.innerWidth - ballSize) { px = window.innerWidth - ballSize; tempVx = -tempVx * bounce; }
+        if (py <= 0) { py = 0; tempVy = -tempVy * bounce; }
+        if (py >= ground) { py = ground; tempVy = -tempVy * bounce; }
+        ctx.beginPath();
+        ctx.arc(px, py, 2, 0, Math.PI*2); // 点々は半径5px
+        ctx.fill();
+    }
+}
+
+// クリア
+function clearCanvas() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+}
+
+// ボール移動
+function move() {
+    var tx = parseFloat(target.style.left);
+    var ty = parseFloat(target.style.top);
+    if(x + ballSize > tx && x < tx + targetSize && y + ballSize > ty && y < ty + targetSize) {
+        addx = -addx * bounce;
+        addy = -addy * bounce;
+        score += 1;
+        document.getElementById("score").innerText = score;
+        placeTarget();
+    }
+    if(x <= 0) { x = 0; addx = -addx * bounce; }
+    if(x >= window.innerWidth - ballSize) { x = window.innerWidth - ballSize; addx = -addx * bounce; }
+    if(y <= 0) { y = 0; addy = -addy * bounce; }
+    if(isDrag) { setTimeout(move, 20); return; }
+
+    addy += gravity;
+    x += addx;
+    y += addy;
+
+    if (y >= ground) { y = ground; addy = -addy * bounce; }
+    if (Math.abs(addy) < 1) { addy = 0; }
+
+    ball.style.left = x + "px";
+    ball.style.top = y + "px";
+
+    setTimeout(move, 20);
+}
+
+// マウス操作
+document.addEventListener("mousedown", function(e){
+    var rect = ball.getBoundingClientRect();
+    startX = rect.left + rect.width/2;
+    startY = rect.top + rect.height/2;
+    isDrag = true;
+});
+document.addEventListener("mousemove", function(e){
+    if(!isDrag) return;
+    drawParabola(e.clientX, e.clientY);
+});
+document.addEventListener("mouseup", function(e){
+    if(!isDrag) return;
+    var endX = e.clientX;
+    var endY = e.clientY;
+    addx = (endX - startX)/power;
+    addy = (endY - startY)/power;
+    addx = Math.max(-maxPower, Math.min(addx, maxPower));
+    addy = Math.max(-maxPower, Math.min(addy, maxPower));
+    clearCanvas();
+    isDrag = false;
+});
+
+window.onload = function() {
+    placeTarget();
+    move();
+};
+</script>
+</body>
+</html>
